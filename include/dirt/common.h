@@ -42,6 +42,7 @@
 #include <filesystem/fwd.h>
 #include <pcg32.h>
 #include <dirt/vec.h>
+#include <random>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -357,6 +358,9 @@ inline Vec2f randomInUnitDisk()
 
 inline Vec3f randomInUnitSphere()
 {
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<float> distribution(0.0,1.0);
 	Vec3f p;
 	do
 	{
@@ -367,4 +371,87 @@ inline Vec3f randomInUnitSphere()
 	} while (length2(p) >= 1.0f);
 
 	return p;
+}
+
+inline Vec3f randomOnUnitSphere()
+{
+    float phi = randf()*2*M_PI;
+    float cosTheta = 2*randf() - 1;
+    float sinTheta = sqrt(1 - cosTheta*cosTheta);
+    float x = cos(phi)*sinTheta;
+    float y = sin(phi)*sinTheta;
+    float z = cosTheta;
+    return Vec3f(x, y, z);
+}
+
+inline Vec3f randomOnUnitHemisphere()
+{
+    float phi = randf()*2*M_PI;
+    float cosTheta = randf();
+    float sinTheta = sqrt(1 - cosTheta*cosTheta);
+    float x = cos(phi)*sinTheta;
+    float y = sin(phi)*sinTheta;
+    float z = cosTheta;
+    return Vec3f(x, y, z);
+}
+
+inline Vec3f randomCosineHemisphere()
+{
+    float phi = randf()*2*M_PI;
+    float cosTheta = sqrt(randf());
+    float sinTheta = sqrt(1 - cosTheta*cosTheta);
+    float x = cos(phi)*sinTheta;
+    float y = sin(phi)*sinTheta;
+    float z = cosTheta;
+    return Vec3f(x, y, z);
+}
+
+inline Vec3f randomCosinePowerHemisphere(float exponent)
+{
+    float phi = randf()*2*M_PI;
+    float cosTheta = powf(randf(), 1 / (exponent + 1));
+    float sinTheta = sqrt(1 - cosTheta*cosTheta);
+    float x = cos(phi)*sinTheta;
+    float y = sin(phi)*sinTheta;
+    float z = cosTheta;
+    return Vec3f(x, y, z);
+}
+
+inline Vec3f sampleSphere(Vec3f center, float radius)
+{
+    Vec3f p = randomOnUnitSphere();
+    return (p * radius + center);
+}
+
+inline Vec3f sampleRect(Vec3f center, Vec3f v0, Vec3f v1)
+{
+    float a = 2.0f * randf() - 1.0f;
+    float b = 2.0f * randf() - 1.0f;
+
+    return (center + a * v0 + b * v1);
+}
+
+inline Vec3f sampleTriangle(Vec3f v0, Vec3f v1, Vec3f v2)
+{
+    float a = randf();
+    float b = randf();
+
+    if (a + b > 1.0f){
+        a = 1 - a;
+        b = 1 - b;
+    }
+    float c = 1 - a - b;
+    return a * v0 + b * v1 + c * v2;
+
+}
+
+inline Vec3f randomSphericalCap(float cosThetaMax)
+{
+    float phi = randf()*2*M_PI;
+    float cosTheta = lerp(cosThetaMax, 1.0f, randf());
+    float sinTheta = sqrt(1 - cosTheta*cosTheta);
+    float x = cos(phi)*sinTheta;
+    float y = sin(phi)*sinTheta;
+    float z = cosTheta;
+    return Vec3f(x, y, z);
 }

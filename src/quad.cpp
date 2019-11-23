@@ -35,7 +35,8 @@ Quad::Quad(const Vec2f & size,
            const Transform & xform)
 	: Surface(xform), m_size(size*0.5f), m_material(material)
 {
-
+    v0 = m_xform.vector({m_size.x, 0, 0});
+    v1 = m_xform.vector({0, m_size.y, 0});
 }
 
 Quad::Quad(const Scene & scene, const json & j)
@@ -45,6 +46,8 @@ Quad::Quad(const Scene & scene, const json & j)
 	m_size /= 2.f;
     
     m_material = scene.findOrCreateMaterial(j);
+    v0 = m_xform.vector({m_size.x, 0, 0});
+    v1 = m_xform.vector({0, m_size.y, 0});
 }
 
 bool Quad::intersect(const Ray3f &ray, HitInfo &hit) const
@@ -82,4 +85,40 @@ bool Quad::intersect(const Ray3f &ray, HitInfo &hit) const
 Box3f Quad::localBBox() const
 {
     return Box3f(-Vec3f(m_size.x,m_size.y,0) - Vec3f(1e-4f), Vec3f(m_size.x,m_size.y,0) + Vec3f(1e-4f));
+}
+
+Vec3f Quad::sample(const Vec3f& o) const
+{
+    
+    // Vec3f p = sampleRect(m_xform.point(Vec3f(0.f, 0.f, 0.f)), v0, v1);
+    Vec3f p = sampleRect(Vec3f(0.f, 0.f, 0.f), {m_size.x, 0, 0}, {0, m_size.y, 0});
+
+    return normalize(m_xform.point(p) - o);
+}
+
+float Quad::pdf(const Vec3f& o, const Vec3f& v) const
+{
+    HitInfo hit;
+    Ray3f ray = Ray3f(o, v);
+
+    
+    if (intersect(ray, hit)){
+        float area = length(cross(v0, v1)) * 4;
+        float cos = abs(dot(normalize(-v), normalize(hit.sn)));
+        float geometry_factor = length2(hit.p - o) / cos; 
+        
+        return 1.0f / area * geometry_factor;
+    }
+    else return 0.0f;
+}
+
+
+void Quad::SampleFromEmit(Vec3f &pos, Vec3f &dir) const
+{
+    Vec3f o = sampleRect(Vec3f(0.f, 0.f, 0.f), {m_size.x, 0, 0}, {0, m_size.y, 0}) ;
+    Vec3f p = randomOnUnitHemisphere() + o;
+    
+    
+    pos = m_xform.point(o);
+    dir = normalize(m_xform.vector(p-o));
 }

@@ -25,6 +25,7 @@
 #include <iostream>
 #include <filesystem/resolver.h>
 #include <dirt/texture.h>
+#include <dirt/integrator.h>
 
 void from_json(const json & j, Transform & v)
 {
@@ -118,6 +119,12 @@ shared_ptr<Material> parseMaterial(const json & j)
         return make_shared<DiffuseLight>(j);
     else if (type == "blend")
         return make_shared<BlendMaterial>(j);
+    else if (type == "phong")
+        return make_shared<Phong>(j);
+    else if (type == "blinnphong")
+        return make_shared<BlinnPhong>(j);
+    else if (type == "roughdielectric")
+        return make_shared<RoughDielectric>(j);
 	else
 		throw DirtException("Unknown 'material' type '%s' here:\n%s.", type, j.dump(4));
 }
@@ -152,10 +159,34 @@ void parseSurface(const Scene & scene, SurfaceBase * parent, const json & j)
                             type.c_str(), j.dump(5));
 }
 
+shared_ptr<Integrator> parseIntegrator(const json & j)
+{
+    string type = getKey("type", "integrator", j);
+    if (type == "normals")
+        return make_shared<NormalIntegrator>(j);
+    else if (type == "ao")
+        return make_shared<AmbientOcclusionIntegrator>(j);
+    else if (type == "path_tracer_mats")
+        return make_shared<PathTracerMaterials>(j);
+    else if (type == "direct_mats")
+        return make_shared<DirectMats>(j);
+    else if (type == "direct_nee")
+        return make_shared<DirectNEE>(j);
+    else if (type == "direct_mis")
+        return make_shared<DirectMIS>(j);
+    else if (type == "path_tracer_mis")
+        return make_shared<PathTracerMis>(j);
+    else if (type == "path_tracer_nee")
+        return make_shared<PathTracerNEE>(j);
+    else if (type == "ppm")
+        return make_shared<PPM>(j);
+}
+
 
 void Scene::parseFromJSON(const json & j)
 {
     message("parsing...\n");
+    
 
     // first create the scene-wide acceleration structure
     if (j.contains("accelerator"))
@@ -173,6 +204,9 @@ void Scene::parseFromJSON(const json & j)
         }
         else if(it.key() == "integrator")
         {
+            if (m_integrator)
+                throw DirtException("There can only be one integrator per scene!");
+            m_integrator = parseIntegrator(it.value());
             
         }
         else if (it.key() == "camera")
@@ -184,6 +218,7 @@ void Scene::parseFromJSON(const json & j)
         else if (it.key() == "image_samples")
         {
             m_imageSamples = it.value();
+            
         }
         else if (it.key() == "background")
         {
@@ -192,6 +227,7 @@ void Scene::parseFromJSON(const json & j)
         }
         else if (it.key() == "materials")
         {
+           
             for (auto & m : it.value())
             {
                 auto material = parseMaterial(m);
@@ -201,8 +237,10 @@ void Scene::parseFromJSON(const json & j)
         }
         else if (it.key() == "surfaces")
         {
+            
             for (auto & s : it.value())
                 parseSurface(*this, this, s);
+            
         }
         else
             throw DirtException("Unsupported key '%s' here:\n%s", it.key(), it.value().dump(4));
@@ -213,6 +251,8 @@ void Scene::parseFromJSON(const json & j)
 
     if (!m_camera)
         throw DirtException("No camera specified in scene!");
+    
+    
 
     m_surfaces->build();
     message("done parsing scene.\n");
