@@ -42,3 +42,6 @@ struct Transform;
 class WavefrontOBJ;
 class Texture;
 class perlin;
+class onb;
+class Integrator;
+class Microfacet;

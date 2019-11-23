@@ -18,7 +18,10 @@
 
 #include <dirt/scene.h>
 #include <dirt/progress.h>
+#include <dirt/integrator.h>
 #include <fstream>
+#include <cmath>
+#include <cfloat>
 
 /// Construct a new scene from a json object
 Scene::Scene(const json & j)
@@ -114,7 +117,7 @@ Image3f Scene::raytrace() const
     auto image = Image3f(m_camera->resolution().x, m_camera->resolution().y);
 
     putYourCodeHere("Assignment 1: insert your raytrace() code here");
-    const int m_imageSamples = 140;
+    // const int m_imageSamples = 140;
 
     // TODO: Render the image, similar to the tutorial
     // Pseudo-code:
@@ -132,32 +135,45 @@ Image3f Scene::raytrace() const
     // Hint: you can create a Progress object (progress.h) to provide a 
     // progress bar during rendering.
     {
-		Progress progress("Rendering", image.size());
-		// Generate a ray for each pixel in the ray image
-		for (auto y : range(image.height()))
-		{
-			for (auto x : range(image.width()))
-			{
-				INCREMENT_TRACED_RAYS;
-				
-				Color3f total = Color3f(0.f);
-                
-				for (int i = 0; i < m_imageSamples; i++){
-                    auto ray = m_camera->generateRay(x + randf(), y + randf());
-					Color3f init = recursiveColor(ray, 0);
-					total += init;
-				}
-				total /= m_imageSamples;
-				
-				Color3f color = total;
+        auto clean_integrator = m_integrator;
+        for (int count = 0 ; count < m_integrator->iter ; count++){
 
-				// TODO: Call recursiveColorFunction ``NumSamples'' times and average the
-				// results. Assign the average color to ``color''
+            auto tmp_integrator = clean_integrator;
+            tmp_integrator->preprocess(*this, count);
+            Progress progress("Rendering", image.size());
+            // Generate a ray for each pixel in the ray image
+            for (auto y : range(image.height()))
+            {
+                for (auto x : range(image.width()))
+                {
+                    INCREMENT_TRACED_RAYS;
+                    
+                    Color3f total = Color3f(0.f);
+                    
+                    for (int i = 0; i < m_imageSamples; i++){
+                        auto ray = m_camera->generateRay(x + randf(), y + randf());
+                        Color3f init;
+                        if (tmp_integrator){
+                            init = tmp_integrator->Li(*this, ray, 0);
+                            
+                        }
+                        else Color3f init = recursiveColor(ray, 0);
 
-				image(x, y) = color;
-				++progress;
-			}
-		}
+                        total += init;
+                    }
+                    total /= m_imageSamples;
+                    
+                    Color3f color = total;
+
+                    // TODO: Call recursiveColorFunction ``NumSamples'' times and average the
+                    // results. Assign the average color to ``color''
+
+                    image(x, y) += color / m_integrator->iter;
+                    ++progress;
+                }
+            }
+        }
+        
 	}	// progress reporter goes out of scope here
 
 	// return the ray-traced image

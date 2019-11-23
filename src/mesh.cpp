@@ -268,3 +268,40 @@ Box3f Triangle::worldBBox() const
     }
     return result;
 }
+
+Vec3f Triangle::sample(const Vec3f& o) const
+{
+    
+    // Vec3f p = sampleRect(m_xform.point(Vec3f(0.f, 0.f, 0.f)), v0, v1);
+    auto i0 = m_mesh->F[m_faceIdx].x,
+         i1 = m_mesh->F[m_faceIdx].y,
+         i2 = m_mesh->F[m_faceIdx].z;
+
+    auto p0 = m_mesh->V[i0],
+         p1 = m_mesh->V[i1],
+         p2 = m_mesh->V[i2];
+
+    
+    Vec3f p = sampleTriangle(p0, p1, p2);
+
+    return normalize(p - o);
+}
+
+float Triangle::pdf(const Vec3f& o, const Vec3f& v) const
+{
+    HitInfo hit;
+    Ray3f ray = Ray3f(o, v);
+
+    Vec3f edge1 = vertex(1) - vertex(0);
+    Vec3f edge2 = vertex(2) - vertex(0);
+
+    if (intersect(ray, hit)){
+        float area = length(cross(edge2, edge1)) / 2; //why
+        
+        float cos = abs(dot(normalize(-v), normalize(hit.sn)));
+        float geometry_factor = length2(hit.p - o) / cos; 
+        
+        return 1.0f / area * geometry_factor;
+    }
+    else return 0.0f;
+}

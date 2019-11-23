@@ -59,6 +59,9 @@ public:
 	Box3f worldBBox() const override;
 	bool intersect(const Ray3f &ray, HitInfo &hit) const override;
 
+    Vec3f sample(const Vec3f& o) const override;
+    float pdf(const Vec3f& o, const Vec3f& v) const override;
+
     bool isEmissive() const override {return m_mesh && m_mesh->material && m_mesh->material->isEmissive();}
     
 

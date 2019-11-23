@@ -33,9 +33,16 @@ public:
     Box3f localBBox() const override;
     bool intersect(const Ray3f &ray, HitInfo &hit) const override;
     bool isEmissive() const override {return m_material && m_material->isEmissive();}
+    Vec3f sample(const Vec3f& o) const override;
+    float pdf(const Vec3f& o, const Vec3f& v) const override;
+
+    void SampleFromEmit(Vec3f &pos, Vec3f &dir) const override;
+
 
 
 protected:
     Vec2f m_size = Vec2f(1.f);
     shared_ptr<const Material> m_material;
+    Vec3f v0;
+    Vec3f v1;
 };

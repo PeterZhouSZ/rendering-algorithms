@@ -19,6 +19,7 @@
 #pragma once
 
 #include <dirt/surface.h>
+#include <dirt/onb.h>
 
 /// A sphere centered at the origin with radius m_radius
 class Sphere : public Surface
@@ -33,6 +34,8 @@ public:
     bool intersect(const Ray3f &ray, HitInfo &hit) const override;
     bool isEmissive() const override {return m_material && m_material->isEmissive();}
     Vec3f get_center()  {return center;} 
+    Vec3f sample(const Vec3f& o) const override;
+    float pdf(const Vec3f& o, const Vec3f& v) const override;
 
 
 protected:

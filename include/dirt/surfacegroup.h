@@ -63,6 +63,12 @@ public:
     */
     bool intersect(const Ray3f &ray, HitInfo &hit) const override;
 
+    Vec3f sample(const Vec3f& o) const override;
+    float pdf(const Vec3f& o, const Vec3f& v) const override;
+
+    shared_ptr<SurfaceBase> GetSurface(int i) const {return m_surfaces[i];};
+    int GetSize() const {return m_surfaces.size();};
+
 
 protected:
 
