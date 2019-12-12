@@ -24,7 +24,7 @@
 #include <dirt/camera.h>
 #include <dirt/material.h>
 #include <dirt/surfacegroup.h>
-
+#include <dirt/fwd.h>
 
 /**
     Main scene data structure.
@@ -74,6 +74,7 @@ public:
 
     /// Return a const reference to the emitters
     const SurfaceBase & emitters() const {return m_emitters;}
+    const SurfaceGroup getAllEmitters() const {return m_emitters;}
 
     /// Return the background color
     Color3f background() const {return m_background;}
@@ -89,14 +90,18 @@ public:
     /// Generate the entire image by ray tracing.
     Image3f raytrace() const;
 
+    Color3f get_background() const {return m_background;}
+
 
 private:
     shared_ptr<Camera> m_camera;
+    shared_ptr<Integrator> m_integrator;
     map<string, shared_ptr<const Material>> m_materials;
     shared_ptr<SurfaceGroup> m_surfaces;
     SurfaceGroup m_emitters {*this};
     Color3f m_background = Color3f(0.2f);
     int maxbounces = 64;
+    
 
     int m_imageSamples = 1;                      ///< samples per pixels in each direction
 };
