@@ -39,6 +39,10 @@ set(dirt_headers
     include/dirt/vec.h
     include/dirt/texture.h
     include/dirt/perlin.h
+    include/dirt/onb.h
+    include/dirt/integrator.h
+    include/dirt/microfacet.h
+    include/dirt/kdtree.h
 )
 
 set(dirt_srcs
@@ -58,6 +62,10 @@ set(dirt_srcs
     src/surfacegroup.cpp
     src/testscenes.cpp
     src/texture.cpp
+    src/integrator.cpp
+    src/onb.cpp
+    src/microfacet.cpp
+    src/kdtree.cpp
 )
 
 # Compile core dirt library
@@ -70,11 +78,20 @@ add_executable(00_dirt_tutorial src/00_dirt_tutorial.cpp)
 add_executable(01_dirt_tutorial src/01_dirt_tutorial.cpp)
 add_executable(dirt src/01_dirt.cpp)
 add_executable(02_test_tri_intersection src/02_test_tri_intersection.cpp)
+add_executable(03_point_gen src/03_point_gen.cpp)
+add_executable(03_sample_test src/03_sample_test.cpp)
+add_executable(04_point_gen src/04_point_gen.cpp)
+add_executable(04_sample_test src/04_sample_test.cpp)
 
 target_link_libraries(00_dirt_tutorial dirt_lib)
 target_link_libraries(01_dirt_tutorial dirt_lib)
 target_link_libraries(dirt dirt_lib)
 target_link_libraries(02_test_tri_intersection dirt_lib)
+target_link_libraries(03_point_gen dirt_lib)
+target_link_libraries(03_sample_test dirt_lib)
+target_link_libraries(04_point_gen dirt_lib)
+target_link_libraries(04_sample_test dirt_lib)
+
 
 SOURCE_GROUP("ext\\tinyformat" FILES ${ext_tinyformat_srcs})
 SOURCE_GROUP("ext\\json" FILES ${ext_json_srcs})
