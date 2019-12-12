@@ -18,6 +18,7 @@
 
 #include <dirt/sphere.h>
 #include <dirt/scene.h>
+#include <dirt/onb.h>
 
 
 Vec2f get_sphere_uv( const Vec3f p){
@@ -92,6 +93,7 @@ bool Sphere::intersect(const Ray3f &ray, HitInfo &hit) const
         if (t1 < tray.maxt && t1 > tray.mint) {
             hitT = t1;
             hitPoint = tray.o + tray.d * hitT;
+            hitPoint *= m_radius / length(hitPoint - center);
             
             geometricNormal = hitPoint - center;
             geometricNormal = normalize(geometricNormal);
@@ -113,6 +115,8 @@ bool Sphere::intersect(const Ray3f &ray, HitInfo &hit) const
         if (t2 < tray.maxt && t2 > tray.mint) {
             hitT = t2;
             hitPoint = tray.o + tray.d * hitT;
+            hitPoint *= m_radius / length(hitPoint - center);
+
             
             geometricNormal = (hitPoint - center);
             geometricNormal = normalize(geometricNormal);
@@ -134,4 +138,44 @@ bool Sphere::intersect(const Ray3f &ray, HitInfo &hit) const
     }
     return false;
     
+}
+
+Vec3f Sphere::sample(const Vec3f& o) const
+{
+    
+    // Vec3f p = sampleRect(m_xform.point(Vec3f(0.f, 0.f, 0.f)), v0, v1);
+    // float d = length(o - center);
+    float d = length(m_xform.point(center) - o);
+    float cosThetaMax = sqrt(d * d - m_radius * m_radius) / d;
+
+    if (d * d - m_radius * m_radius <= 0){
+        Vec3f p = sampleSphere(m_xform.point(center), m_radius);
+        return normalize(p - o); 
+    }
+    else{
+        onb k;
+        k.build_from_w(m_xform.point(center) - o);
+        return k.local(randomSphericalCap(cosThetaMax));
+    }
+    
+
+    
+}
+
+float Sphere::pdf(const Vec3f& o, const Vec3f& v) const
+{
+    HitInfo hit;
+    Ray3f ray = Ray3f(o, v);
+
+    
+    if (intersect(ray, hit)){
+        float d = length(o - m_xform.point(center));
+        float cosThetaMax = sqrt(d * d - m_radius * m_radius) / d;
+        if(d * d - m_radius * m_radius <= 0){
+            
+            return 1 / (4*M_PI*m_radius*m_radius) ; 
+        }
+        return 1.0f / (2 * M_PI * (1 - cosThetaMax));
+    }
+    else return 0.0f;
 }

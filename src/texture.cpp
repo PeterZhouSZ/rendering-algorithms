@@ -36,8 +36,12 @@ ImageTexture::ImageTexture(const json &j){
 
 Color3f ImageTexture::value(const HitInfo& hit) const {
     
-    int i = hit.uv.x * img.width();
-    int j = (1 - hit.uv.y) * img.height() - 0.001;
+    // int i = hit.uv.x * img.width();
+    // int j = (1 - hit.uv.y) * img.height() - 0.001;
+
+
+    int i = (hit.uv.x *4 - int(hit.uv.x*4 )) * img.width();
+    int j = ((1 - hit.uv.y)*4  - int((1 - hit.uv.y)*4) ) * img.height();
     // clamp
     if (i < 0) i = 0;
     if (j < 0) j = 0;
