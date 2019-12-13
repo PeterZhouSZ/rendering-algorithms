@@ -22,6 +22,7 @@
 #include <fstream>
 #include <cmath>
 #include <cfloat>
+#include <thread>
 
 /// Construct a new scene from a json object
 Scene::Scene(const json & j)
@@ -110,10 +111,57 @@ Color3f Scene::recursiveColor(const Ray3f &ray, int depth) const
 	else return m_background;
 }
 
+
+// void Scene::CalculateColor(int start, int end, Image3f &image) const
+// {
+    
+//     auto clean_integrator = m_integrator;
+//     for (int count = 0 ; count < m_integrator->iter ; count++){
+
+//         auto tmp_integrator = clean_integrator;
+//         tmp_integrator->preprocess(*this, count);
+//         Progress progress("Rendering", image.size());
+//         // Generate a ray for each pixel in the ray image
+//         for (auto y : range(image.height()))
+//         {
+//             for (auto x : range(image.width()))
+//             {
+//                 INCREMENT_TRACED_RAYS;
+                
+//                 Color3f total = Color3f(0.f);
+                
+//                 for (int i = 0; i < m_imageSamples; i++){
+//                     auto ray = m_camera->generateRay(x + randf(), y + randf());
+//                     Color3f init;
+//                     if (tmp_integrator){
+//                         init = tmp_integrator->Li(*this, ray, 0);
+                        
+//                     }
+//                     else Color3f init = recursiveColor(ray, 0);
+
+//                     total += init;
+//                 }
+//                 total /= m_imageSamples;
+                
+//                 Color3f color = total;
+
+//                 // TODO: Call recursiveColorFunction ``NumSamples'' times and average the
+//                 // results. Assign the average color to ``color''
+
+//                 image(x, y) += color / m_integrator->iter;
+//                 ++progress;
+//             }
+//         }
+//     }
+        
+// }
+
+
 // raytrace an image
 Image3f Scene::raytrace() const
 {
     // allocate an image of the proper size
+    auto fulltime = std::chrono::high_resolution_clock::now();
     auto image = Image3f(m_camera->resolution().x, m_camera->resolution().y);
 
     putYourCodeHere("Assignment 1: insert your raytrace() code here");
@@ -174,8 +222,61 @@ Image3f Scene::raytrace() const
             }
         }
         
-	}	// progress reporter goes out of scope here
+	}	
 
+
+    // const int k_threads = std::thread::hardware_concurrency();
+    // std::vector<std::thread> threads(k_threads);
+    // for (int t = 0; t < k_threads; ++t) {
+    //     threads[t] = std::thread(std::bind([&](int start, int end, int t) {
+    //         auto clean_integrator = m_integrator;
+    //         for (int count = 0 ; count < m_integrator->iter ; count++){
+
+    //             auto tmp_integrator = clean_integrator;
+    //             tmp_integrator->preprocess(*this, count);
+    //             Progress progress("Rendering", image.size());
+    //             // Generate a ray for each pixel in the ray image
+    //             // for (auto y : range(image.height()))
+    //             for(int y = start ; y < end ; y++)
+    //             {
+    //                 for (auto x : range(image.width()))
+    //                 {
+    //                     INCREMENT_TRACED_RAYS;
+                        
+    //                     Color3f total = Color3f(0.f);
+                        
+    //                     for (int i = 0; i < m_imageSamples; i++){
+    //                         auto ray = m_camera->generateRay(x + randf(), y + randf());
+    //                         Color3f init;
+    //                         if (tmp_integrator){
+    //                             init = tmp_integrator->Li(*this, ray, 0);
+                                
+    //                         }
+    //                         else Color3f init = recursiveColor(ray, 0);
+
+    //                         total += init;
+    //                     }
+    //                     total /= m_imageSamples;
+                        
+    //                     Color3f color = total;
+
+    //                     // TODO: Call recursiveColorFunction ``NumSamples'' times and average the
+    //                     // results. Assign the average color to ``color''
+
+    //                     image(x, y) += color / m_integrator->iter;
+    //                     ++progress;
+    //                 }
+    //             }
+    //         }
+    //     }, t*image.height()/k_threads, (t+1)==k_threads ? image.height() : (t+1)*image.height()/k_threads, t));
+    // }
+    // for (int t = 0; t < k_threads; ++t) {
+    //     threads[t].join();
+    // }
+
+    auto timeSpan = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - fulltime);
+    int frameTimeMs = static_cast<int>(timeSpan.count());
+    cout << "time: " << frameTimeMs << " ms \n";
 	// return the ray-traced image
     return image;
 }
