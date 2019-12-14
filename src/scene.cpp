@@ -223,17 +223,23 @@ Image3f Scene::raytrace() const
     //     }
         
 	// }	
-
-
-    const int k_threads = std::thread::hardware_concurrency();
-    std::vector<std::thread> threads(k_threads);
-    for (int t = 0; t < k_threads; ++t) {
-        threads[t] = std::thread(std::bind([&](int start, int end, int t) {
-            auto clean_integrator = m_integrator;
-            for (int count = 0 ; count < m_integrator->iter ; count++){
-
-                auto tmp_integrator = clean_integrator;
-                tmp_integrator->preprocess(*this, count);
+    
+    for (int count = 0 ; count < m_integrator->iter ; count++){
+        const int k_threads = std::thread::hardware_concurrency();
+        std::vector<std::thread*> threads(k_threads);
+        auto clean_integrator = m_integrator;
+        auto tmp_integrator = clean_integrator;
+        tmp_integrator->preprocess(*this, count);
+        
+        for (int t = 0; t < k_threads; ++t) {
+            threads[t] = new std::thread(std::bind([&](int start, int end, int t) {
+                
+                // for (int count = 0 ; count < m_integrator->iter ; count++){
+                // cout << "b" << endl;
+                
+                
+                
+                
                 Progress progress("Rendering", image.size());
                 // Generate a ray for each pixel in the ray image
                 // for (auto y : range(image.height()))
@@ -267,12 +273,16 @@ Image3f Scene::raytrace() const
                         ++progress;
                     }
                 }
-            }
-        }, t*image.height()/k_threads, (t+1)==k_threads ? image.height() : (t+1)*image.height()/k_threads, t));
+                // }
+            }, t*image.height()/k_threads, (t+1)==k_threads ? image.height() : (t+1)*image.height()/k_threads, t));
+        }
+        for (int t = 0; t < k_threads; ++t) {
+            threads[t]->join();
+        }
+        
     }
-    for (int t = 0; t < k_threads; ++t) {
-        threads[t].join();
-    }
+
+    
 
     auto timeSpan = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - fulltime);
     int frameTimeMs = static_cast<int>(timeSpan.count());

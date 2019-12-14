@@ -227,6 +227,7 @@ Color3f DirectMIS::Li(const Scene &scene, const Ray3f &ray, int depth) const
     //             traced_ray = Ray3f(hit.p, srec.scattered);
     //         }
             
+            
     //         depth++;
             
     //     }
@@ -398,8 +399,6 @@ Color3f PathTracerMis::Li(const Scene &scene, const Ray3f &ray, int depth) const
             break;
         }
         else{
-            // if(hit.mat->get_name() == "Lambertian" || hit.mat->get_name() == "Phong")
-            //     cout << "P:" << hit.p << endl;
 
             Color3f L_dir = Color3f(0.0f);
         
@@ -434,7 +433,11 @@ Color3f PathTracerMis::Li(const Scene &scene, const Ray3f &ray, int depth) const
                     float mis_2 = pdf_m / (pdf_m + pdf_e);
                     throughput *= hit.mat->eval(traced_ray.d, srec.scattered, hit) / pdf_m * mis_2;
 
-                    
+                    if(depth == 0 && hit.mat->get_name() == "RoughDielectric"){
+                        // cout <<"pdf:" << pdf_m << endl;
+                        // cout <<"eval:" <<  hit.mat->eval(traced_ray.d, srec.scattered, hit) << endl;
+                        // cout << "throughput" << throughput << endl;
+                    }
                 }
                 else throughput *= srec.attenuation * 1.0f; // delta pdf_m
         
@@ -466,10 +469,17 @@ Color3f PathTracerMis::Li(const Scene &scene, const Ray3f &ray, int depth) const
 void PPM::preprocess(const Scene &scene, int count)
 {
     search_radius = GetSearchRadius(count);
-    
+    // generatePhotonMap(scene);
 
-    // clear tree in the case of progressive photon mapping
+    // m_photonMap = std::unique_ptr<PhotonMap>(new PhotonMap());
+        // m_photonMap->reserve(m_photonCount);
+
+		/* Estimate a default photon radius */
     tree.clearTree();
+		
+
+
+
 	
     int stored_photons = 0;
     int stored_caustics = 0;
@@ -479,23 +489,25 @@ void PPM::preprocess(const Scene &scene, int count)
 
     while (stored_photons < max_photon_count && stored_caustics < max_caustics){
         // First choose a light
+        // const Emitter* emitter = scene->getRandomEmitter(sampler->next1D());
         
         Vec3f pos, dir;
         int rand_idx = rand() % n_lights;
 
         scene.getAllEmitters().GetSurface(rand_idx)->SampleFromEmit(pos, dir);
         Ray3f photon_ray = Ray3f(pos, dir);
-        
+        // Color3f photon_power = emitter->samplePhoton(photon_ray, sampler->next2D(), sampler->next2D(), sampler->next1D());
         Color3f photon_power = Color3f(200000.0f);
-        photon_power = Color3f(15.0 * M_PI * 50*50 );
+        photon_power = Color3f(15.0 * M_PI * 130*130 );
 
         bool isCaustics = false;
         
         if (luminance(photon_power) != 0.0f)
         {
-            emitted_photons++;		// record how many photons have been shot 
+            emitted_photons++;			// keep track of how many photons we shot to divide the contrib of all stored photons finally
 
-            // start tracing
+            // start the trace of the photon
+            // Intersection isect;
             HitInfo hit;
             int depth = 0;
             ScatterRecord srec;
@@ -504,11 +516,10 @@ void PPM::preprocess(const Scene &scene, int count)
             {
                 // Check for intersection
                 // If not intersection, don't do anything
-                if (!scene.intersect(photon_ray, hit)) {
-                    
-                    break;
-                }
+                if (!scene.intersect(photon_ray, hit)) break;
                 
+                
+                // const BSDF* bsdf = isect.mesh->getBSDF();
                 bool sample_result = hit.mat->sample(photon_ray.d, hit, srec);
 
                 if (hit.mat->get_name() == "Dielectric" || hit.mat->get_name() == "RoughDielectric")
@@ -518,36 +529,41 @@ void PPM::preprocess(const Scene &scene, int count)
                 if (hit.mat->stored_photons && sample_result)
                 {
                     // Store photon
-                    
+                    // m_photonMap->push_back(Photon(hit.p, photon_ray.d, photon_power));
                     tree.addPhoton(Photon(hit.p, dir, photon_power));
                     // cout << "global:" << hit.p << endl;
                     if(isCaustics){
                         caustics_map.addPhoton(Photon(hit.p, dir, photon_power));
                         stored_caustics++;
-                        
+                        // cout << hit.p << endl;
                     }
                         
                     stored_photons++;
                 }
-                
-                
-               
+
+                // Now sample next direction
+                // BSDFQueryRecord bRec(isect.toLocal(-photon_ray.d));
+                // Color3f f = bsdf->sample(bRec, sampler->next2D());
+                // cout << "b" << endl;
                 if (hit.mat->pdf(photon_ray.d, srec.scattered, hit) > 0 && !srec.isSpecular){
                     Color3f f = hit.mat->eval(photon_ray.d, srec.scattered, hit) / hit.mat->pdf(photon_ray.d, srec.scattered, hit);
-                   
-
-                    //update the photon power
+                    // cout << "?" << endl;
                 
+                // cout << "a" << endl;
+                // Vector3f reflected_dir = isect.toWorld(bRec.wo);
+
+                //update the photon power
+                // pdf is included in the f term
                     Color3f incoming_power = photon_power;
-                    
+                    // photon_power *= f * fabsf(Frame::cosTheta(bRec.wo));
                     
                     photon_power *= f;
                     
-                    
+                    // Check for zero bsdf
                     if (luminance(f) == 0.0f)
                         break;
                     
-                    // russian roulette
+                    // Check for russian roulette
                     if (depth > rr_start)
                     {
                         float p = 1.0f - luminance(photon_power) / luminance(incoming_power);
@@ -558,22 +574,22 @@ void PPM::preprocess(const Scene &scene, int count)
                     if (depth > max_depth ) break;
                     
 
-                    
+                    // Generate the next bounce direction
                     photon_ray = Ray3f(hit.p, srec.scattered);
                     depth++;
                 }
                 else {
                     Color3f f = srec.attenuation;
                     Color3f incoming_power = photon_power;
-                    
+                    // photon_power *= f * fabsf(Frame::cosTheta(bRec.wo));
                     
                     photon_power *= f;
                     
-                    
+                    // Check for zero bsdf
                     if (luminance(f) == 0.0f)
                         break;
                     
-                    // russian roulette
+                    // Check for russian roulette
                     if (depth > rr_start)
                     {
                         float p = 1.0f - luminance(photon_power) / luminance(incoming_power);
@@ -584,7 +600,7 @@ void PPM::preprocess(const Scene &scene, int count)
                     if (depth > max_depth ) break;
                     
 
-                    
+                    // Generate the next bounce direction
                     photon_ray = Ray3f(hit.p, srec.scattered);
                     depth++;
                 }
@@ -595,9 +611,10 @@ void PPM::preprocess(const Scene &scene, int count)
 
     // Divide all photons by the total emitted
     stored = emitted_photons;
-    
+    // m_photonMap->scale(emitted_photons);
 
-    // build global map and caustics map
+    /* Build the photon map */
+    // m_photonMap->build();
     tree.buildTree();
     caustics_map.buildTree();
     cout << "Done building photon map" << endl;
@@ -678,10 +695,129 @@ void PPM::tracePhoton(const Scene &scene, const Vec3f pos, const Vec3f dir, cons
 
 Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
 {
+    // HitInfo hit;
+
     
 
+    // ScatterRecord srec;
+    // depth = 0;
+    // Color3f L(0.0f);
+    // Color3f throughput(1.0f);
+
+    // Ray3f traced_ray = ray;
+
+    // while (depth < 10){
+    //     if(!scene.intersect(traced_ray, hit)){
+    //         L += throughput * scene.get_background();
+    //         break;
+    //     }
+    //     else{
+    //         Vec3f emit = hit.mat->emitted(traced_ray, hit);
+    //         if (hit.mat->isEmissive()) {
+    //             L += emit;
+    //             break;
+    //         }
+        
+    //         if(hit.mat->sample(traced_ray.d, hit, srec)){
+    //             std::vector<const Photon *> photons;
+    //             std::vector<float> distances;
+                
+    //             tree.nearestNeighbours(hit.p, photons, distances, search_radius);
+    //             // cout << photons.size() << endl;
+    //             // for (int i = 0; i < photons.size(); ++i)
+    //             //     cout << "Photon " << (i + 1) << ": Pos " << photons[i]->pos << " Distance to query point: " << distances[i] << endl;
+    
+    //             if(photons.size() > 0){
+    //                 for (int i = 0 ; i < photons.size() ; i++){
+    //                     Vec3f photon_dir = photons[i]->dir;
+    //                     float area = M_PI * search_radius * search_radius;
+    //                     // cout << throughput * hit.mat->eval(traced_ray.d, srec.scattered, hit) / hit.mat->pdf(traced_ray.d, srec.scattered, hit) * photons[i]->power / area << endl;
+    //                     // cout << hit.mat->eval(traced_ray.d, -photon_dir, hit) / hit.mat->pdf(traced_ray.d, -photon_dir, hit) << endl;
+    //                     L += throughput * photons[i]->power  / area;
+    //                 }
+                    
+    //             }
+
+    //         }
+    //         traced_ray = Ray3f(hit.p, srec.scattered);
+    //         depth++;
+    //     }
+    // }
+    // return L;
+
+    
+    // while (depth < max_depth){
+    //     if(!scene.intersect(traced_ray, hit)){
+    //         L += throughput * scene.get_background();
+    //         break;
+    //     }
+    //     else{
+            
+    //         Vec3f emit = hit.mat->emitted(traced_ray, hit);
+
+    //         //no bounce off from light source
+            // if (hit.mat->isEmissive()) {
+            //     L += emit;
+            //     break;
+            // }
+
+    //         // cout << hit.p << endl;
+    //         bool sample_result = hit.mat->sample(traced_ray.d, hit, srec);
+    //         // L += throughput * emit;
+
+            
+    //         // only count for non specular surface
+    //         if(sample_result){
+    //             if (!srec.isSpecular && hit.mat->pdf(traced_ray.d, srec.scattered, hit) > 0){
+
+    //                 std::vector<const Photon *> photons;
+    //                 std::vector<float> distances;
+                    
+    //                 tree.nearestNeighbours(hit.p, photons, distances, search_radius);
+                    // cout << photons.size() << endl;
+                    // for (int i = 0; i < photons.size(); ++i)
+                    //     cout << "Photon " << (i + 1) << ": Pos " << photons[i]->pos << " Distance to query point: " << distances[i] << endl;
+
+    //                 if(photons.size() > 0){
+    //                     for (int i = 0 ; i < photons.size() ; i++){
+    //                         Vec3f photon_dir = photons[i]->dir;
+    //                         float area = M_PI * search_radius * search_radius;
+    //                         // cout << throughput * hit.mat->eval(traced_ray.d, srec.scattered, hit) / hit.mat->pdf(traced_ray.d, srec.scattered, hit) * photons[i]->power / area << endl;
+    //                         // cout << hit.mat->eval(traced_ray.d, photon_dir, hit) / hit.mat->pdf(traced_ray.d, photon_dir, hit) << endl;
+    //                         L += throughput * hit.mat->eval(traced_ray.d,  -photon_dir, hit) / hit.mat->pdf(traced_ray.d,  -photon_dir, hit) * photons[i]->power / area;
+    //                     }
+    //                     // break;
+    //                 }
+
+    //             }
+        
+    //         }
+
+    //         if(!srec.isSpecular && hit.mat->pdf(traced_ray.d, srec.scattered, hit) > 0)
+    //             throughput *= hit.mat->eval(traced_ray.d, srec.scattered, hit) / hit.mat->pdf(traced_ray.d, srec.scattered, hit);
+    //         else throughput *= srec.attenuation;
+            
+    //         traced_ray = Ray3f(hit.p, srec.scattered);
+
+
+    //         // russian roulette
+
+    //         // if(depth > rr_start){
+    //         //     float rr_prob = luminance(throughput);
+    //         //     if (randf() > rr_prob)
+    //         //         break;
+    //         //     else throughput /= rr_prob;
+    //         // }
+            
+    //         depth++;
+            
+    //     }
+        
+    // }
+    // return L;
+
     HitInfo hit;
-    max_depth = 15;
+    max_depth = 4;
     
 
     ScatterRecord srec;
@@ -691,9 +827,12 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
     Color3f throughput(1.0f);
 
     Ray3f traced_ray = ray;
-    
+    // cout << depth << endl;
+    // cout << max_depth << endl;
     if (depth == max_depth){
+        // cout << "?" << endl;
         if (scene.intersect(ray, hit)){
+            // cout << "lol" << endl;
             Vec3f emit = hit.mat->emitted(ray, hit);
             return emit;
         }
@@ -712,22 +851,28 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                 L += emit * throughput;
                 break;
             }
+            // const BSDF* bsdf = isect.mesh->getBSDF();
             bool sample_result = hit.mat->sample(traced_ray.d, hit, srec);
 
             Vec3f light_sample = scene.emitters().sample(hit.p);
                 
             float pdf_e = scene.emitters().pdf(hit.p, light_sample);
             if(hit.mat->stored_photons && pdf_e > 0 && !hit.mat->isDelta) {
+                // cout << depth << endl;
                 L_dir = hit.mat->eval(traced_ray.d, light_sample, hit) / pdf_e * Li(scene, Ray3f(hit.p, light_sample), max_depth);
             }
 
             L += L_dir * throughput;
 
-            
+            // const BSDF* bsdf = isect.mesh->getBSDF();
+            // bool sample_result = hit.mat->sample(traced_ray.d, hit, srec);
+
             // Compute indirect contribution only from diffuse surfaces
             if (hit.mat->stored_photons){
+                // std::vector<uint32_t> results;
                 std::vector<const Photon *> photons;
                 std::vector<float> distances;
+                // m_photonMap->search(isect.p, m_photonRadius, results);
                 tree.nearestNeighbours(hit.p, photons, distances, 30, search_radius);
                 float area = M_PI * search_radius * search_radius;
                 
@@ -738,13 +883,16 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                 }
                 area = M_PI * max_dis * max_dis;
 
+                // The uint32_t makes the size() - 1 wrap around. Subtle bug.
                 if (photons.size() > 0)
                 {
                     for (uint32_t i = 0; i < photons.size() - 1; i++)
                     {
+                        // const Photon &photon = (*m_photonMap)[results[i]];
                         Vec3f photon_dir = photons[i]->dir;
 
-                        // Compute the integral 
+                        // Compute the integral equation
+                        // BSDFQueryRecord bRec(isect.toLocal(-traced_ray.d), isect.toLocal(-photon.getDirection()), ESolidAngle);
                         float pdf_m = hit.mat->pdf(traced_ray.d, -photon_dir, hit);
                         if (pdf_m >= 0){
                             Color3f f = hit.mat->eval(traced_ray.d, -photon_dir, hit) / pdf_m;
@@ -761,8 +909,11 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
             }
 
             // Sample a reflection ray
-            
+            // BSDFQueryRecord bRec(isect.toLocal(-traced_ray.d));
+            // Color3f f = bsdf->sample(bRec, sampler->next2D());
+            // Vector3f reflected_dir = isect.toWorld(bRec.wo);
             Color3f f;
+            // float cos_theta = fabsf(Frame::cosTheta(bRec.wo));
             if (hit.mat->pdf(traced_ray.d, srec.scattered, hit) > 0 && !srec.isSpecular){
                 f = hit.mat->eval(traced_ray.d, srec.scattered, hit) / hit.mat->pdf(traced_ray.d, srec.scattered, hit);
 
@@ -773,6 +924,19 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
             // Check if we've fa
             if (luminance(throughput) == 0.0f)
                 break;
+
+            // Check for russian roulette
+            // if (depth > rr_start)
+            // {
+            //     if (randf() < 0.5f)
+            //         break;
+            //     else throughput *= 2.0f;
+            // }
+            // else if (depth > max_depth)
+            // {
+            //     // forcibly terminate
+            //     break;
+            // }
 
             // Propogate
             traced_ray = Ray3f(hit.p, srec.scattered);
@@ -815,6 +979,7 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                 }
                 else throughput *= srec.attenuation;
 
+                // Check if we've fa
                 if (luminance(throughput) == 0.0f)
                     break;
 
@@ -827,11 +992,11 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                     HitInfo tmp_hit = hit;
                     auto factor = throughput;
                     
+                    // Compute indirect contribution only from diffuse surfaces
                     int max_bounces = 20;
                     //second bounce
                     int count_bounce = 0;
 
-                    //caustics map calculation
                     std::vector<const Photon *> photons;
                     std::vector<float> distances;
 
@@ -842,7 +1007,6 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                             max_dis = distances[i];
                     }
                     float area = M_PI * max_dis * max_dis;
-                    // if(photons.size() == 0) cout << "???" << endl;
                     if (photons.size() > 0){
                         for (uint32_t i = 0; i < photons.size() - 1; i++){
                             // const Photon &photon = (*m_photonMap)[results[i]];
@@ -948,14 +1112,17 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                         // count_bounce++;
                         
                     }
+                    // cout << "????:"  <<  throughput << endl;
 
                     Vec3f tmp_traced_ray = traced_ray.d;
 
+                    // cout << "after:" << tmp_hit.p << endl;
 
                     photons.clear();
                     distances.clear();
                     
                     tree.nearestNeighbours(tmp_hit.p, photons, distances, 30, search_radius);
+                    // float area = M_PI * search_radius * search_radius;
                     
                     max_dis = distances[0];
                     for (int i = 0 ; i < distances.size() ; i++){
@@ -964,19 +1131,23 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                     }
                     area = M_PI * max_dis * max_dis;
 
+                    // The uint32_t makes the size() - 1 wrap around. Subtle bug.
                     if (photons.size() > 0){
                         for (uint32_t i = 0; i < photons.size() - 1; i++){
                             // const Photon &photon = (*m_photonMap)[results[i]];
                             Vec3f photon_dir = photons[i]->dir;
 
-                            // Compute the integral
+                            // Compute the integral equation
                             
                             float pdf_m = tmp_hit.mat->pdf(tmp_traced_ray, -photon_dir, tmp_hit);
+                            // cout << pdf_m << endl;
 
                             if(pdf_m < 0) cout << srec.isSpecular << endl;
 
                             if (pdf_m >= 0){
+                                // cout << "a" << endl;
                                 Color3f f = tmp_hit.mat->eval(tmp_traced_ray, -photon_dir, tmp_hit) / pdf_m;
+                                // cout << "b" << endl;
                                 if (pdf_m == 0.0f && luminance(tmp_hit.mat->eval(tmp_traced_ray, -photon_dir, tmp_hit)) == 0.0f) 
                                     f = tmp_hit.mat->get_albedo(hit);
                                 // cout << throughput * f * photons[i]->power / area / stored / FG_num  << endl;
@@ -986,6 +1157,11 @@ Color3f PPM::Li(const Scene &scene, const Ray3f &ray, int depth) const
                         }
                     }
 
+                    //caustics map calculation
+                    
+
+                    
+                    
                 }
                 break;
             }

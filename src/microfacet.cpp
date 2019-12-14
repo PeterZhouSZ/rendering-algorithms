@@ -6,18 +6,37 @@
 
 Vec3f GGX::sample(const float alpha, const Vec3f &N) const
 {
+    // float x = randf();
+    // float y = randf();
+    // float phi = xi.y()*M_PI;
+    // float tanThetaSq = alpha * alpha * xi.x()/(1.0f - xi.x());
+    // float cosTheta = 1.0f / std::sqrt(1.0f + tanThetaSq);
+        
+    // float sinTheta = std::sqrt(max(1.0f - cosTheta*cosTheta, 0.0f));
+    // return Vec3f(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+
+    // onb uvw;
+    // uvw.build_from_w(hit.sn);
+    // Vec3f w_h = uvw.local(randomCosineHemisphere());
+    // return w_h;
 
     float rng1 = randf();
     float rng2 = randf();
 
-    float phi = rng1 * M_PI * 2;
+    // float theta_m = atanf(alpha*sqrtf(rng1) / sqrtf(1 - rng1));
+    // float phi_m = 2 * M_PI * rng2;
+
+    // Vec3f direction = Vec3f(sin(theta_m) * cos(phi_m), sin(theta_m) * sin(phi_m), cos(theta_m));
+    // direction = Vec3f(0.0f, 0.0f, 1.0f);
+
+    float phi = rng1*M_PI*2;
     float cosTheta = 0.0f;
     float tanThetaSq = alpha * alpha * rng2/(1.0f - rng2);
-    cosTheta = 1.0f / sqrt(1.0f + tanThetaSq);
+    cosTheta = 1.0f/std::sqrt(1.0f + tanThetaSq);
 
-    float r = sqrt(max(1.0f - cosTheta*cosTheta, 0.0f));
+    float r = std::sqrt(max(1.0f - cosTheta*cosTheta, 0.0f));
     // cout << alpha << endl;
-    Vec3f direction = normalize(Vec3f(cos(phi)*r, sin(phi)*r, cosTheta));
+    Vec3f direction = normalize(Vec3f(std::cos(phi)*r, std::sin(phi)*r, cosTheta));
     
 
 	onb uvw;
