@@ -110,13 +110,9 @@ public:
         Vec3f midPoint = origin + normalize(look) * fdist;
 
         Vec3f topleft = midPoint + unit_vertical * m_size[1] / 2 - unit_horizontal * m_size[0] / 2;
-
-        Vec2f m = randomInUnitDisk();
-        Vec3f rd = m_apertureRadius * Vec3f(m.x, m.y, 0);
-        Vec3f offset = Vec3f(u * rd.x, v * rd.y, 0);
         
 
-        return Ray3f(m_xform.point(origin + offset), m_xform.vector(topleft + u * m_size.x * unit_horizontal / m_resolution[0] - v * unit_vertical * m_size.y / m_resolution[1] - origin - offset)); 
+        return Ray3f(m_xform.point(origin), m_xform.vector(topleft + u * m_size.x * unit_horizontal / m_resolution[0] - v * unit_vertical * m_size.y / m_resolution[1] - origin)); 
         
     }
     bool key_exists(const json& j, const string& key)
@@ -147,8 +143,8 @@ private:
 	Transform m_xform = Transform();      ///< Local coordinate system
 	Vec2f m_size = Vec2f(1,1);            ///< Physical size of the image plane
 	float m_focalDistance = 1.f;          ///< Distance to image plane along local z axis
-	Vec2d m_resolution = Vec2d(1024,1024);  ///< Image resolution
-	float m_apertureRadius = .0f;         ///< The size of the aperture for depth of field
+	Vec2d m_resolution = Vec2d(512,512);  ///< Image resolution
+	float m_apertureRadius = 0.f;         ///< The size of the aperture for depth of field
     float vfov = 90.0f;
     Vec3f origin = Vec3f(0.f, 0.f, 0.f);
     Vec3f look  = Vec3f(0.f, 0.f, -1.0f);

@@ -103,9 +103,9 @@ class PPM: public Integrator
     public:
         PPM(const json & j = json::object()) { 
             max_depth = j.value("max_bounces", 64);
-            search_radius = j.value("search_radius", 10.0f);
+            search_radius = j.value("search_radius", 20.0f);
             iter = j.value("iter", 1);
-            final_gather = j.value("FG", false);
+            final_gather = j.value("FG", true);
             FG_num = j.value("FG_num", 2);
         };
         Color3f Li(const Scene &scene, const Ray3f &ray, int depth) const override;

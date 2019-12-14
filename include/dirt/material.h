@@ -131,7 +131,6 @@ public:
 	virtual string get_name() const {return "default material";}
 	bool stored_photons;
 	bool isDelta;
-
 	// shared_ptr<const Texture> BumpMap;
 	// bool _bump;
 	// float b_offset;
