@@ -23,7 +23,16 @@
 #include <stdlib.h>
 #include <dirt/texture.h>
 #include <dirt/microfacet.h>
+#include <dirt/image.h>
 
+
+// struct BumpMap
+// {
+// 	Image3f content;
+// 	bool _bump;
+// 	float b_offset = 1.0f;
+// 	// Vec3f bump_N(const HitInfo &hit, BumpMap img);
+// };
 
 /// A base class used to represent surface material properties.
 class Material
@@ -132,8 +141,8 @@ public:
 	bool stored_photons;
 	bool isDelta;
 	// shared_ptr<const Texture> BumpMap;
-	// bool _bump;
-	// float b_offset;
+
+	// BumpMap img;
 };
 
 
